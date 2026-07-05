@@ -1,24 +1,19 @@
 # Tiny Timers
 
-A lightweight Windows desktop app for tracking game/app time, with OBS-friendly text file
+A lightweight Windows desktop app for tracking game/app time, with text file
 output, countdowns, linked-app auto-detection, and global hotkeys.
 
 ## Install
 
 **[⬇ Download the latest installer](../../releases/latest)**
 
-1. Grab `TinyTimersSetup-x.x.x.exe` from the [Releases page](../../releases).
-2. Run it. It installs for your user only, so no admin rights are required.
-3. Optionally check "Create a desktop shortcut" during install.
-4. Launch **Tiny Timers** from the Start Menu (or the desktop shortcut, if you created one).
-
-The installer always overwrites just the app itself - your timers, settings, and any other data
-under `%LocalAppData%\TinyTimers` are never touched by installing or updating, so upgrading to a
-new version never resets what you've already set up.
+1. Grab `TinyTimersSetup-x.x.x.exe` from the [Releases page](../../releases)
+2. Run it
+3. Launch **Tiny Timers**
 
 ## Uninstall
 
-Uninstall like any other app: **Settings > Apps > Installed apps > Tiny Timers > Uninstall**, or
+**Settings > Apps > Installed apps > Tiny Timers > Uninstall**, or
 via the Start Menu shortcut **Tiny Timers > Uninstall Tiny Timers**.
 
 You'll be asked whether to also remove your saved data (timers, options, and cached files under
@@ -28,62 +23,59 @@ You'll be asked whether to also remove your saved data (timers, options, and cac
   folders), settings, and cached data. This cannot be undone.
 - **No** - leaves all of that in place, so reinstalling later picks up right where you left off.
 
-The "run on startup" entry is always removed automatically, regardless of that choice.
-
 ## Using Tiny Timers
 
 ### Timers
 
-Click **Add Timer** to create one. Each timer is one of two kinds:
+Click **Add Timer** to create a new timer.
 
 - **Regular (count-up)** - counts up from zero once started, like a stopwatch. Can be linked to
   an app (see below).
 - **Countdown** - counts down from a duration you set, and plays a sound when it reaches zero.
 
-Every timer has:
+Timer features:
 
-- **Start / Pause / Resume** - click the timer's button, or use the global hotkey (see below). A
-  finished countdown shows **Reset** instead, since there's nothing left to resume.
+- **Start / Pause / Resume** - click the timer's button, or use the global hotkey (see below).
 - **Edit** - rename it, change its current time (or countdown duration), and change its linked
   app or sound.
-- **Reset** - count-up timers reset to zero; countdowns reset to their full duration.
-- **Remove** - deletes the timer and its text file. This cannot be undone.
-- **Reveal file** - opens the folder containing this timer's live-updating text file, with the
-  file pre-selected.
+- **Reset** - count-up timers reset to zero; countdowns reset to their initial duration.
+- **Remove** - deletes the timer and its associated text file. This cannot be undone.
+- **Reveal file** - opens the folder containing this timer's live-updating text file.
 
 ### Linking a timer to an app
 
 Regular timers can be linked to an app - either one you pick from currently-running processes, or
-by browsing to its `.exe` directly. A linked timer:
+by browsing to its `.exe` directly.
 
-- Gets a highlighted border while its app is running, and a stronger highlight while that app's
-  window is actually focused ("foreground-active").
+A linked timer:
+
+- Gets a **blue** border while its app is running, and a **green** border while that app's
+  window is actually focused and "foreground-active".
 - Becomes the target of the global hotkeys automatically whenever its app is the one in focus.
 
-If several linked timers are focused/running at once, the global hotkeys act on whichever one's
-app is currently in the foreground. If only one timer has a linked app configured at all, the
-hotkeys always target that one, from anywhere - there's no other candidate they could mean.
+If several linked timers are running at once, the global hotkeys act on whichever one's
+app is currently in the focused and in the foreground. If only one timer has a linked app configured at all, the hotkeys always target that one, from anywhere.
 
 ### Countdown sounds
 
 A countdown plays a default system "ding" when it finishes, or you can pick your own `.wav`,
-`.mp3`, or `.wma` file to play instead.
+`.mp3`, or `.wma` file to play instead via the edit/options menu.
 
 ### Live text files for OBS / streaming
 
 Every timer continuously writes its current display time to its own plain-text `.txt` file, ready
 to drop straight into an OBS (or similar) "Read from file" text source. There's also a shared
 `active_app.txt` that always reflects whichever *linked* regular timer is currently
-foreground-active - point one OBS text source at that single file and it'll automatically follow
+foreground-active. Point one text source at that single file and it'll automatically follow
 whatever game/app you're currently playing, without needing to swap sources.
 
 By default these files live under `%LocalAppData%\TinyTimers\Timer Text Files`, but you can point
 them at any folder you like from **Options > Timer Files**. Switching folders keeps each folder's
-timers as its own independent profile - switching back restores whatever was there before.
+timers as its own independent profile. Switching back to a previous folder restores any timers that were there before.
 
 ### Global hotkeys
 
-Two systemwide hotkeys work even while a fullscreen game has focus:
+Two systemwide hotkeys work even while a fullscreen app has focus:
 
 - **Play / Pause / Resume** (default `Ctrl+Alt+G`) - toggles whichever timer is currently "active"
   (see linking, above).
@@ -100,20 +92,13 @@ From the tray icon you can:
 - **Right-click** for a menu listing every timer (click one to start/pause/reset it directly),
   plus **Open** and **Exit**.
 
-The tray icon's tooltip shows each timer's current time, and it's also where update
-notifications appear (see below) - as a small balloon that won't steal focus from whatever
-you're doing.
-
 ## Options
 
 - **Appearance** - dark, light, or match-system theme.
 - **System** - run on startup, minimize to tray on close, keep window always on top.
-- **Shortcuts** - rebind the two global hotkeys.
+- **Shortcuts** - rebind any global hotkeys.
 - **Timer Files** - change where timer text files are written, or clear out old/orphaned ones.
-- **Updates** - check for a new version on demand, and optionally turn on **Automatic updates**:
-  new versions are downloaded quietly in the background and installed the next time you restart
-  the app, so an update never interrupts a session in progress. Either way, your timers and
-  settings are always preserved across an update.
+- **Updates** - check for a new version on demand, and optionally turn on **Automatic updates**.
 
 ## Building from source
 
