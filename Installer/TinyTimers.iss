@@ -37,7 +37,9 @@ Name: "{group}\Uninstall {#MyAppName}"; Filename: "{app}\Uninstaller.exe"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
+; No "skipifsilent" - this also relaunches the app after an unattended (/VERYSILENT) install, which
+; is how the in-app auto-updater applies a downloaded update once the user restarts the app.
+Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall
 
 [Code]
 const

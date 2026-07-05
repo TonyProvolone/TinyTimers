@@ -26,6 +26,22 @@ public partial class App : Application
             return;
         }
 
+        // A previous session may have downloaded an update in the background and deferred
+        // installing it until the app was restarted - this is that restart. Run the installer
+        // unattended and exit immediately so it can overwrite this exe; it relaunches the app
+        // itself once done. If the pending version turns out to be stale (e.g. already applied),
+        // just clear it instead.
+        if (UpdateInstaller.TryGetPendingInstaller(out var pendingInstallerPath, out var pendingVersionText))
+        {
+            if (Version.TryParse(pendingVersionText, out var pendingVersion) && UpdateChecker.IsNewer(pendingVersion))
+            {
+                UpdateInstaller.LaunchInstallerAndExit(pendingInstallerPath);
+                return;
+            }
+
+            UpdateInstaller.ClearPending();
+        }
+
         StartMinimized = e.Args.Any(a => a.Equals("--minimized", StringComparison.OrdinalIgnoreCase));
 
         var mainWindow = new MainWindow();

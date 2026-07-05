@@ -1,4 +1,8 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Net.Http;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using TinyTimers.Models;
@@ -13,12 +17,15 @@ public partial class OptionsDialog : Window
     public bool RunOnStartup { get; private set; }
     public bool MinimizeToTaskbar { get; private set; }
     public bool AlwaysOnTop { get; private set; }
+    public bool AutomaticUpdates { get; private set; }
     public AppTheme Theme { get; private set; }
     public string? TimerFilesDirectory { get; private set; }
     public HotkeyModifiers HotkeyModifiers { get; private set; }
     public uint HotkeyKey { get; private set; }
     public HotkeyModifiers ResetHotkeyModifiers { get; private set; }
     public uint ResetHotkeyKey { get; private set; }
+
+    private string? _latestReleaseHtmlUrl;
 
     public OptionsDialog(AppSettings current, IReadOnlyCollection<string> activeTimerFilePaths)
     {
@@ -28,6 +35,7 @@ public partial class OptionsDialog : Window
         RunOnStartupCheck.IsChecked = current.RunOnStartup;
         MinimizeToTaskbarCheck.IsChecked = current.MinimizeToTaskbar;
         AlwaysOnTopCheck.IsChecked = current.AlwaysOnTop;
+        AutomaticUpdatesCheck.IsChecked = current.AutomaticUpdates;
         TimerFilesDirectory = current.TimerFilesDirectory;
         HotkeyModifiers = current.HotkeyModifiers;
         HotkeyKey = current.HotkeyKey;
@@ -50,6 +58,7 @@ public partial class OptionsDialog : Window
         UpdatePathDisplay();
         UpdateHotkeyDisplay();
         UpdateResetHotkeyDisplay();
+        CurrentVersionText.Text = $"You're on version {UpdateChecker.CurrentVersion.ToString(3)}";
     }
 
     private void UpdateHotkeyDisplay() => HotkeyBox.Text = FormatHotkey(HotkeyModifiers, HotkeyKey);
@@ -148,11 +157,64 @@ public partial class OptionsDialog : Window
         new ConfirmDialog("Clear Old Timers", resultMessage, "OK", showCancel: false) { Owner = this }.ShowDialog();
     }
 
+    private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        CheckForUpdatesButton.IsEnabled = false;
+        UpdateStatusText.Text = "Checking for updates...";
+        _latestReleaseHtmlUrl = null;
+
+        try
+        {
+            var info = await UpdateChecker.GetLatestReleaseAsync();
+            if (info is null)
+            {
+                UpdateStatusText.Text = "Couldn't check for updates. Try again later.";
+                return;
+            }
+
+            if (!UpdateChecker.IsNewer(info.Version))
+            {
+                UpdateStatusText.Text = $"You're up to date ({UpdateChecker.CurrentVersion.ToString(3)}).";
+                return;
+            }
+
+            _latestReleaseHtmlUrl = info.HtmlUrl;
+
+            if (AutomaticUpdatesCheck.IsChecked == true)
+            {
+                UpdateStatusText.Text = $"Downloading {info.TagName}...";
+                var downloaded = await UpdateInstaller.DownloadAsync(info);
+                UpdateStatusText.Text = downloaded
+                    ? $"{info.TagName} downloaded — it'll install next time you restart Tiny Timers."
+                    : $"{info.TagName} is available. Click to view the release.";
+            }
+            else
+            {
+                UpdateStatusText.Text = $"{info.TagName} is available. Click to view the release.";
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or IOException or UnauthorizedAccessException)
+        {
+            UpdateStatusText.Text = "Couldn't check for updates. Try again later.";
+        }
+        finally
+        {
+            CheckForUpdatesButton.IsEnabled = true;
+        }
+    }
+
+    private void UpdateStatusText_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_latestReleaseHtmlUrl is { } url)
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+    }
+
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         RunOnStartup = RunOnStartupCheck.IsChecked == true;
         MinimizeToTaskbar = MinimizeToTaskbarCheck.IsChecked == true;
         AlwaysOnTop = AlwaysOnTopCheck.IsChecked == true;
+        AutomaticUpdates = AutomaticUpdatesCheck.IsChecked == true;
         Theme = LightThemeRadio.IsChecked == true ? AppTheme.Light
             : DarkThemeRadio.IsChecked == true ? AppTheme.Dark
             : AppTheme.System;

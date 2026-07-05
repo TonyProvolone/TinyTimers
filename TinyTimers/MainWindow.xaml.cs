@@ -2,7 +2,9 @@
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -17,6 +19,7 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<TimerItem> _regularTimers = new();
     private readonly ObservableCollection<TimerItem> _countdownTimers = new();
     private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _updateCheckTimer = new() { Interval = TimeSpan.FromHours(3) };
     private readonly AppSettings _settings = SettingsStore.Load();
     private System.Windows.Forms.NotifyIcon? _trayIcon;
     private System.Windows.Forms.ContextMenuStrip? _trayMenu;
@@ -24,6 +27,8 @@ public partial class MainWindow : Window
     private bool _isExiting;
     private bool _toggleHotkeyRegistered;
     private bool _resetHotkeyRegistered;
+    private Version? _lastNotifiedUpdateVersion;
+    private string? _pendingToastUrl;
 
     /// <summary>The regular timer active_app.txt is currently tracking. Sticky: once a timer
     /// becomes foreground-active it keeps being written every tick even after focus moves
@@ -83,6 +88,10 @@ public partial class MainWindow : Window
         _clock.Start();
 
         SetUpTrayIcon();
+
+        _updateCheckTimer.Tick += (_, _) => CheckForUpdatesInBackground();
+        _updateCheckTimer.Start();
+        Dispatcher.BeginInvoke(new Action(CheckForUpdatesInBackground), DispatcherPriority.ApplicationIdle);
 
         SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
 
@@ -289,8 +298,56 @@ public partial class MainWindow : Window
             ContextMenuStrip = _trayMenu
         };
         _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
+        _trayIcon.BalloonTipClicked += (_, _) =>
+        {
+            if (_pendingToastUrl is { } url)
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        };
 
         UpdateTrayTooltip();
+    }
+
+    /// <summary>Best-effort check against the GitHub releases API; failures (offline, rate limiting,
+    /// etc.) are silently ignored since this runs unattended in the background. Shows a tray balloon
+    /// (which doesn't steal focus from whatever app the user is currently in) either to let them know
+    /// an update exists, or - when automatic updates are enabled - once it's been downloaded and is
+    /// ready to install on next restart.</summary>
+    private async void CheckForUpdatesInBackground()
+    {
+        try
+        {
+            var info = await UpdateChecker.GetLatestReleaseAsync();
+            if (info is null || !UpdateChecker.IsNewer(info.Version) || info.Version == _lastNotifiedUpdateVersion)
+                return;
+
+            if (_settings.AutomaticUpdates)
+            {
+                if (!await UpdateInstaller.DownloadAsync(info))
+                    return;
+
+                _lastNotifiedUpdateVersion = info.Version;
+                ShowUpdateToast("Tiny Timers update ready", $"{info.TagName} was downloaded and will install next time you restart Tiny Timers.", info.HtmlUrl);
+            }
+            else
+            {
+                _lastNotifiedUpdateVersion = info.Version;
+                ShowUpdateToast("Tiny Timers update available", $"{info.TagName} is available. Click to view the release.", info.HtmlUrl);
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private void ShowUpdateToast(string title, string text, string clickUrl)
+    {
+        if (_trayIcon is null)
+            return;
+
+        _pendingToastUrl = clickUrl;
+        _trayIcon.BalloonTipTitle = title;
+        _trayIcon.BalloonTipText = text;
+        _trayIcon.ShowBalloonTip(10000);
     }
 
     private void BuildTrayMenu()
@@ -392,6 +449,7 @@ public partial class MainWindow : Window
         }
 
         _clock.Stop();
+        _updateCheckTimer.Stop();
 
         var allTimers = AllTimers.ToList();
         foreach (var timer in allTimers)
@@ -513,6 +571,7 @@ public partial class MainWindow : Window
 
         _settings.RunOnStartup = dialog.RunOnStartup;
         _settings.MinimizeToTaskbar = dialog.MinimizeToTaskbar;
+        _settings.AutomaticUpdates = dialog.AutomaticUpdates;
 
         if (dialog.AlwaysOnTop != _settings.AlwaysOnTop)
         {

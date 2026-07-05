@@ -7,6 +7,7 @@ public sealed class AppSettings
     public bool RunOnStartup { get; set; }
     public bool MinimizeToTaskbar { get; set; }
     public bool AlwaysOnTop { get; set; }
+    public bool AutomaticUpdates { get; set; }
     public AppTheme Theme { get; set; } = AppTheme.System;
 
     /// <summary>Null or empty means use the default location under %LocalAppData%.</summary>
