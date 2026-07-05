@@ -1,0 +1,58 @@
+﻿<Window x:Class="TinyTimers.SetHotkeyDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Set Hotkey"
+        SizeToContent="WidthAndHeight"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        FontFamily="Segoe UI">
+    <StackPanel Margin="20" Width="280">
+        <TextBlock x:Name="PromptText"
+                   Text="Press the key combination you want to use"
+                   Foreground="{DynamicResource PrimaryTextBrush}"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,12"/>
+
+        <TextBox x:Name="CaptureBox"
+                 Height="32"
+                 Padding="4"
+                 IsReadOnly="True"
+                 Cursor="Arrow"
+                 VerticalContentAlignment="Center"
+                 HorizontalContentAlignment="Center"
+                 FontWeight="SemiBold"
+                 Background="{DynamicResource InputBackgroundBrush}"
+                 Foreground="{DynamicResource InputForegroundBrush}"
+                 BorderBrush="{DynamicResource InputBorderBrush}"
+                 BorderThickness="1"
+                 PreviewKeyDown="CaptureBox_PreviewKeyDown"/>
+
+        <TextBlock x:Name="ErrorText"
+                   Foreground="{DynamicResource ErrorTextBrush}"
+                   FontSize="11"
+                   TextWrapping="Wrap"
+                   Margin="0,8,0,0"
+                   Visibility="Collapsed"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Cancel"
+                    Width="80" Height="28" Margin="0,0,8,0"
+                    Click="Cancel_Click"
+                    Background="Transparent"
+                    Foreground="{DynamicResource MutedTextBrush}"
+                    BorderThickness="0"
+                    Cursor="Hand"/>
+            <Button x:Name="SaveButton"
+                    Content="Save"
+                    Width="80" Height="28"
+                    Click="Save_Click"
+                    Background="{DynamicResource AccentBackgroundBrush}"
+                    Foreground="{DynamicResource AccentForegroundBrush}"
+                    BorderThickness="0"
+                    FontWeight="SemiBold"
+                    Cursor="Hand"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

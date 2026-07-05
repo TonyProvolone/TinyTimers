@@ -1,0 +1,14 @@
+﻿# Build output
+[Bb]in/
+[Oo]bj/
+TinyTimers/publish/
+Installer/Output/
+
+# Visual Studio / Rider
+.vs/
+*.user
+*.suo
+.idea/
+
+# Claude Code local settings (personal overrides, not shared)
+.claude/settings.local.json
