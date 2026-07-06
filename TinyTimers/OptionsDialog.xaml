@@ -17,6 +17,27 @@
         <RadioButton x:Name="SystemThemeRadio" GroupName="Theme" Content="Match system" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,0,4"
                      ToolTip="Matches current active OS system theme"/>
 
+        <TextBlock Text="Timer name size" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,16,0,8"/>
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+            <RadioButton x:Name="NameSizeRegularRadio" GroupName="NameSize" Content="Regular" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,16,0"/>
+            <RadioButton x:Name="NameSizeLargeRadio" GroupName="NameSize" Content="Large" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,16,0"/>
+            <RadioButton x:Name="NameSizeGiantRadio" GroupName="NameSize" Content="Giant" Foreground="{DynamicResource PrimaryTextBrush}"/>
+        </StackPanel>
+
+        <TextBlock Text="Timer value size" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,8,0,8"/>
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+            <RadioButton x:Name="ValueSizeRegularRadio" GroupName="ValueSize" Content="Regular" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,16,0"/>
+            <RadioButton x:Name="ValueSizeLargeRadio" GroupName="ValueSize" Content="Large" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,16,0"/>
+            <RadioButton x:Name="ValueSizeGiantRadio" GroupName="ValueSize" Content="Giant" Foreground="{DynamicResource PrimaryTextBrush}"/>
+        </StackPanel>
+
+        <TextBlock Text="Timer buttons &amp; icons size" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,8,0,8"/>
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+            <RadioButton x:Name="ButtonSizeRegularRadio" GroupName="ButtonSize" Content="Regular" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,16,0"/>
+            <RadioButton x:Name="ButtonSizeLargeRadio" GroupName="ButtonSize" Content="Large" Foreground="{DynamicResource PrimaryTextBrush}" Margin="0,0,16,0"/>
+            <RadioButton x:Name="ButtonSizeGiantRadio" GroupName="ButtonSize" Content="Giant" Foreground="{DynamicResource PrimaryTextBrush}"/>
+        </StackPanel>
+
         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,16,0,16"/>
 
         <!-- System -->

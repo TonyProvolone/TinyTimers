@@ -27,8 +27,10 @@ public partial class MainWindow : Window
     private bool _isExiting;
     private bool _toggleHotkeyRegistered;
     private bool _resetHotkeyRegistered;
+    private bool _isSwitchingFolder;
     private Version? _lastNotifiedUpdateVersion;
     private string? _pendingToastUrl;
+    private int _ticksSinceAutosave;
 
     /// <summary>The regular timer active_app.txt is currently tracking. Sticky: once a timer
     /// becomes foreground-active it keeps being written every tick even after focus moves
@@ -41,17 +43,14 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         ThemeManager.Apply(_settings.Theme);
+        FontScaleManager.Apply(_settings.TimerNameSize, _settings.TimerValueSize, _settings.TimerButtonSize);
 
         InitializeComponent();
 
         Topmost = _settings.AlwaysOnTop;
 
         ConfigureTimerFileLocation(_settings.TimerFilesDirectory);
-
-        var records = TimerStore.LoadRecordsForFolder(TimerFileWriter.OutputDirectory);
-        ReconcileExternallyRenamedRecords(records);
-        foreach (var record in records)
-            AddTimerFromRecord(record);
+        LoadTimersForCurrentFolder();
 
         RewriteFileManifest();
         SetUpFileWatcher();
@@ -84,6 +83,17 @@ public partial class MainWindow : Window
                 TimerFileWriter.WriteActiveApp(_activeAppTimer.Elapsed);
 
             UpdateTrayTooltip();
+
+            // Every other save point is triggered by a specific user action, so a running timer's
+            // elapsed time in between actions only lives in memory. Flush it periodically too, so
+            // a crash or forced shutdown mid-run loses at most this window's worth of progress
+            // instead of reverting all the way back to the last explicit start/pause/edit.
+            if (++_ticksSinceAutosave >= 30)
+            {
+                _ticksSinceAutosave = 0;
+                if (AllTimers.Any(t => t.IsRunning))
+                    SaveTimerRecords();
+            }
         };
         _clock.Start();
 
@@ -105,9 +115,22 @@ public partial class MainWindow : Window
         UpdateTrayTooltip();
         RewriteFileManifest();
 
+        // Suppressed mid-switch: SwitchTimerFolder clears both collections before it has pointed
+        // TimerFileWriter at the new folder, so saving here would flush an empty roster over the
+        // old folder's just-saved profile instead of the new folder's.
+        if (!_isSwitchingFolder)
+            SaveTimerRecords();
+
         if (_regularTimers.Count > 0)
             TimerFileWriter.EnsureActiveAppFileExists();
     }
+
+    /// <summary>Persists the full timer roster (names, kinds, elapsed times, linked apps, sounds)
+    /// for the current folder right away. Called after every user action that changes a timer,
+    /// not just on graceful close, so a crash, a forced update install, or the app being killed
+    /// outright never reverts the roster back to whatever was last saved.</summary>
+    private void SaveTimerRecords() =>
+        TimerStore.SaveRecordsForFolder(TimerFileWriter.OutputDirectory, AllTimers);
 
     private void AddTimerFromRecord(TimerRecord record)
     {
@@ -156,12 +179,20 @@ public partial class MainWindow : Window
         }
         else if (msg == GlobalHotkey.WM_HOTKEY && wParam.ToInt32() == GlobalHotkey.ToggleId)
         {
-            ResolveActiveTimer()?.ToggleOrReset();
+            if (ResolveActiveTimer() is { } toggleTarget)
+            {
+                toggleTarget.ToggleOrReset();
+                SaveTimerRecords();
+            }
             handled = true;
         }
         else if (msg == GlobalHotkey.WM_HOTKEY && wParam.ToInt32() == GlobalHotkey.ResetId)
         {
-            ResolveActiveTimer()?.Reset();
+            if (ResolveActiveTimer() is { } resetTarget)
+            {
+                resetTarget.Reset();
+                SaveTimerRecords();
+            }
             handled = true;
         }
 
@@ -213,6 +244,79 @@ public partial class MainWindow : Window
         missingRecords[0].Name = TimerFileWriter.NameFromFilePath(unclaimedFiles[0]);
     }
 
+    /// <summary>Loads the current folder's saved timers, reconciles any external renames, adopts
+    /// any leftover .txt file that isn't claimed by a record as a recovered timer, and populates
+    /// the UI from the result - the one path both startup and folder-switching go through, so a
+    /// folder always comes back exactly as it was however it lost track of a timer.</summary>
+    private void LoadTimersForCurrentFolder()
+    {
+        var records = TimerStore.LoadRecordsForFolder(TimerFileWriter.OutputDirectory);
+        ReconcileExternallyRenamedRecords(records);
+        var recovered = AdoptOrphanedTimerFiles(records);
+
+        foreach (var record in records)
+            AddTimerFromRecord(record);
+
+        // Persist the recovery immediately so it only ever needs to happen once per file -
+        // otherwise a folder with no other changes would silently re-adopt the same orphan
+        // (harmlessly, but pointlessly) on every future launch or switch.
+        if (recovered)
+            SaveTimerRecords();
+    }
+
+    /// <summary>Recovers timer files that exist on disk but aren't claimed by any known record -
+    /// e.g. a timer from before this folder's profile existed, or one whose record was lost to a
+    /// crash or an old bug. Each unclaimed .txt file becomes a new regular (count-up) timer, its
+    /// name taken from the filename and its elapsed time from whatever the file currently says,
+    /// since a bare display file can't tell us if it was really a countdown, what it was linked
+    /// to, or what sound it played - only that it existed. Skipped entirely if the record for that
+    /// exact name already exists, so nothing already tracked is ever duplicated.</summary>
+    private static bool AdoptOrphanedTimerFiles(List<TimerRecord> records)
+    {
+        if (!Directory.Exists(TimerFileWriter.OutputDirectory))
+            return false;
+
+        var expectedPaths = new HashSet<string>(records.Select(r => TimerFileWriter.GetFilePath(r.Name)), StringComparer.OrdinalIgnoreCase);
+        var activeAppPath = TimerFileWriter.ActiveAppFilePath;
+
+        var recovered = false;
+        foreach (var file in Directory.EnumerateFiles(TimerFileWriter.OutputDirectory, "*.txt"))
+        {
+            if (expectedPaths.Contains(file) || string.Equals(file, activeAppPath, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            records.Add(new TimerRecord
+            {
+                Name = TimerFileWriter.NameFromFilePath(file),
+                Kind = TimerKind.CountUp,
+                Elapsed = ParseElapsedFromFile(file)
+            });
+            recovered = true;
+        }
+
+        return recovered;
+    }
+
+    private static TimeSpan ParseElapsedFromFile(string filePath)
+    {
+        try
+        {
+            var parts = File.ReadAllText(filePath).Trim().Split(':');
+            if (parts.Length == 3
+                && int.TryParse(parts[0], out var hours)
+                && int.TryParse(parts[1], out var minutes)
+                && int.TryParse(parts[2], out var seconds))
+            {
+                return new TimeSpan(hours, minutes, seconds);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+
+        return TimeSpan.Zero;
+    }
+
     private void SetUpFileWatcher()
     {
         _fileWatcher?.Dispose();
@@ -237,6 +341,7 @@ public partial class MainWindow : Window
             var newName = TimerFileWriter.NameFromFilePath(e.FullPath);
             timer.AdoptExternalRename(newName);
             RewriteFileManifest();
+            SaveTimerRecords();
         });
     }
 
@@ -368,7 +473,11 @@ public partial class MainWindow : Window
             {
                 var timer = timerList[i];
                 var item = new System.Windows.Forms.ToolStripMenuItem($"{timer.Name} — {timer.Elapsed} ({timer.ToggleLabel})");
-                item.Click += (_, _) => timer.ToggleOrReset();
+                item.Click += (_, _) =>
+                {
+                    timer.ToggleOrReset();
+                    SaveTimerRecords();
+                };
                 _trayMenu.Items.Add(item);
 
                 // Only separate timers from each other when there's more than one to tell apart.
@@ -497,7 +606,10 @@ public partial class MainWindow : Window
     private void Toggle_Click(object sender, RoutedEventArgs e)
     {
         if (((FrameworkElement)sender).Tag is TimerItem item)
+        {
             item.ToggleOrReset();
+            SaveTimerRecords();
+        }
     }
 
     private void Edit_Click(object sender, RoutedEventArgs e)
@@ -515,6 +627,7 @@ public partial class MainWindow : Window
             item.SetLinkedApp(dialog.LinkedAppPath);
             item.SetSound(dialog.SoundFilePath);
             RewriteFileManifest();
+            SaveTimerRecords();
         }
     }
 
@@ -531,7 +644,10 @@ public partial class MainWindow : Window
             isDestructive: true) { Owner = this };
 
         if (dialog.ShowDialog() == true)
+        {
             item.Reset();
+            SaveTimerRecords();
+        }
     }
 
     private void Remove_Click(object sender, RoutedEventArgs e)
@@ -583,6 +699,16 @@ public partial class MainWindow : Window
         {
             _settings.Theme = dialog.Theme;
             ThemeManager.Apply(_settings.Theme);
+        }
+
+        if (dialog.TimerNameSize != _settings.TimerNameSize
+            || dialog.TimerValueSize != _settings.TimerValueSize
+            || dialog.TimerButtonSize != _settings.TimerButtonSize)
+        {
+            _settings.TimerNameSize = dialog.TimerNameSize;
+            _settings.TimerValueSize = dialog.TimerValueSize;
+            _settings.TimerButtonSize = dialog.TimerButtonSize;
+            FontScaleManager.Apply(_settings.TimerNameSize, _settings.TimerValueSize, _settings.TimerButtonSize);
         }
 
         if (dialog.HotkeyModifiers != _settings.HotkeyModifiers || dialog.HotkeyKey != _settings.HotkeyKey)
@@ -645,17 +771,25 @@ public partial class MainWindow : Window
     {
         TimerStore.SaveRecordsForFolder(TimerFileWriter.OutputDirectory, AllTimers);
 
-        _regularTimers.Clear();
-        _countdownTimers.Clear();
-        _activeAppTimer = null;
+        // Guaranteed to clear even if something below throws (e.g. the destination folder is
+        // unreadable) - otherwise every future Add/Remove would silently stop autosaving for
+        // the rest of the session instead of just this switch failing.
+        _isSwitchingFolder = true;
+        try
+        {
+            _regularTimers.Clear();
+            _countdownTimers.Clear();
+            _activeAppTimer = null;
 
-        ConfigureTimerFileLocation(newDirectory);
-        _settings.TimerFilesDirectory = newDirectory;
+            ConfigureTimerFileLocation(newDirectory);
+            _settings.TimerFilesDirectory = newDirectory;
 
-        var records = TimerStore.LoadRecordsForFolder(TimerFileWriter.OutputDirectory);
-        ReconcileExternallyRenamedRecords(records);
-        foreach (var record in records)
-            AddTimerFromRecord(record);
+            LoadTimersForCurrentFolder();
+        }
+        finally
+        {
+            _isSwitchingFolder = false;
+        }
 
         RewriteFileManifest();
         SetUpFileWatcher();

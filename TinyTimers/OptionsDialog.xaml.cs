@@ -19,6 +19,9 @@ public partial class OptionsDialog : Window
     public bool AlwaysOnTop { get; private set; }
     public bool AutomaticUpdates { get; private set; }
     public AppTheme Theme { get; private set; }
+    public SizeScale TimerNameSize { get; private set; }
+    public SizeScale TimerValueSize { get; private set; }
+    public SizeScale TimerButtonSize { get; private set; }
     public string? TimerFilesDirectory { get; private set; }
     public HotkeyModifiers HotkeyModifiers { get; private set; }
     public uint HotkeyKey { get; private set; }
@@ -55,11 +58,40 @@ public partial class OptionsDialog : Window
                 break;
         }
 
+        SetSizeRadio(current.TimerNameSize, NameSizeRegularRadio, NameSizeLargeRadio, NameSizeGiantRadio);
+        SetSizeRadio(current.TimerValueSize, ValueSizeRegularRadio, ValueSizeLargeRadio, ValueSizeGiantRadio);
+        SetSizeRadio(current.TimerButtonSize, ButtonSizeRegularRadio, ButtonSizeLargeRadio, ButtonSizeGiantRadio);
+
         UpdatePathDisplay();
         UpdateHotkeyDisplay();
         UpdateResetHotkeyDisplay();
         CurrentVersionText.Text = $"You're on version {UpdateChecker.CurrentVersion.ToString(3)}";
     }
+
+    private static void SetSizeRadio(
+        SizeScale value,
+        System.Windows.Controls.RadioButton regular,
+        System.Windows.Controls.RadioButton large,
+        System.Windows.Controls.RadioButton giant)
+    {
+        switch (value)
+        {
+            case SizeScale.Large:
+                large.IsChecked = true;
+                break;
+            case SizeScale.Giant:
+                giant.IsChecked = true;
+                break;
+            default:
+                regular.IsChecked = true;
+                break;
+        }
+    }
+
+    private static SizeScale GetSizeRadio(System.Windows.Controls.RadioButton large, System.Windows.Controls.RadioButton giant) =>
+        large.IsChecked == true ? SizeScale.Large
+        : giant.IsChecked == true ? SizeScale.Giant
+        : SizeScale.Regular;
 
     private void UpdateHotkeyDisplay() => HotkeyBox.Text = FormatHotkey(HotkeyModifiers, HotkeyKey);
 
@@ -218,6 +250,10 @@ public partial class OptionsDialog : Window
         Theme = LightThemeRadio.IsChecked == true ? AppTheme.Light
             : DarkThemeRadio.IsChecked == true ? AppTheme.Dark
             : AppTheme.System;
+
+        TimerNameSize = GetSizeRadio(NameSizeLargeRadio, NameSizeGiantRadio);
+        TimerValueSize = GetSizeRadio(ValueSizeLargeRadio, ValueSizeGiantRadio);
+        TimerButtonSize = GetSizeRadio(ButtonSizeLargeRadio, ButtonSizeGiantRadio);
 
         DialogResult = true;
     }

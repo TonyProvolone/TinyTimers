@@ -10,6 +10,10 @@ public sealed class AppSettings
     public bool AutomaticUpdates { get; set; }
     public AppTheme Theme { get; set; } = AppTheme.System;
 
+    public SizeScale TimerNameSize { get; set; } = SizeScale.Regular;
+    public SizeScale TimerValueSize { get; set; } = SizeScale.Regular;
+    public SizeScale TimerButtonSize { get; set; } = SizeScale.Regular;
+
     /// <summary>Null or empty means use the default location under %LocalAppData%.</summary>
     public string? TimerFilesDirectory { get; set; }
 

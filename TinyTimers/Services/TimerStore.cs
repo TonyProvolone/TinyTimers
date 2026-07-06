@@ -88,10 +88,16 @@ internal static class TimerStore
 
     private static void SaveAllProfiles(List<TimerFolderProfile> profiles)
     {
-        var json = JsonSerializer.Serialize(new StoreFile { Profiles = profiles }, new JsonSerializerOptions { WriteIndented = true });
+        try
+        {
+            var json = JsonSerializer.Serialize(new StoreFile { Profiles = profiles }, new JsonSerializerOptions { WriteIndented = true });
 
-        Directory.CreateDirectory(AppPaths.DataDirectory);
-        File.WriteAllText(DataFilePath, json);
+            Directory.CreateDirectory(AppPaths.DataDirectory);
+            File.WriteAllText(DataFilePath, json);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
     }
 
     private static TimerRecord ToRecord(TimerItem t) => new()
