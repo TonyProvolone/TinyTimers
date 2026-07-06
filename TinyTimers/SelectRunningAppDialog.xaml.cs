@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
+using TinyTimers.Services;
 
 namespace TinyTimers;
 
@@ -30,7 +31,10 @@ public partial class SelectRunningAppDialog : Window
                 if (process.MainWindowHandle == IntPtr.Zero || string.IsNullOrWhiteSpace(process.MainWindowTitle))
                     continue;
 
-                var path = process.MainModule?.FileName;
+                // QueryFullProcessImageName rather than process.MainModule: the latter can't read
+                // the executable path of games and anti-cheat-protected processes (e.g. Rocket
+                // League), which used to make them silently missing from this list.
+                var path = ProcessImagePath.TryGet(process.Id);
                 if (string.IsNullOrEmpty(path) || !seenPaths.Add(path))
                     continue;
 
