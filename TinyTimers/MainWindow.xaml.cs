@@ -27,7 +27,6 @@ public partial class MainWindow : Window
     private bool _isExiting;
     private bool _toggleHotkeyRegistered;
     private bool _resetHotkeyRegistered;
-    private bool _isSwitchingFolder;
     private Version? _lastNotifiedUpdateVersion;
     private string? _pendingToastUrl;
     private int _ticksSinceAutosave;
@@ -114,23 +113,17 @@ public partial class MainWindow : Window
         UpdateEmptyState();
         UpdateTrayTooltip();
         RewriteFileManifest();
-
-        // Suppressed mid-switch: SwitchTimerFolder clears both collections before it has pointed
-        // TimerFileWriter at the new folder, so saving here would flush an empty roster over the
-        // old folder's just-saved profile instead of the new folder's.
-        if (!_isSwitchingFolder)
-            SaveTimerRecords();
+        SaveTimerRecords();
 
         if (_regularTimers.Count > 0)
             TimerFileWriter.EnsureActiveAppFileExists();
     }
 
     /// <summary>Persists the full timer roster (names, kinds, elapsed times, linked apps, sounds)
-    /// for the current folder right away. Called after every user action that changes a timer,
-    /// not just on graceful close, so a crash, a forced update install, or the app being killed
-    /// outright never reverts the roster back to whatever was last saved.</summary>
-    private void SaveTimerRecords() =>
-        TimerStore.SaveRecordsForFolder(TimerFileWriter.OutputDirectory, AllTimers);
+    /// right away. Called after every user action that changes a timer, not just on graceful
+    /// close, so a crash, a forced update install, or the app being killed outright never
+    /// reverts the roster back to whatever was last saved.</summary>
+    private void SaveTimerRecords() => TimerStore.SaveRecords(AllTimers);
 
     private void AddTimerFromRecord(TimerRecord record)
     {
@@ -244,13 +237,13 @@ public partial class MainWindow : Window
         missingRecords[0].Name = TimerFileWriter.NameFromFilePath(unclaimedFiles[0]);
     }
 
-    /// <summary>Loads the current folder's saved timers, reconciles any external renames, adopts
-    /// any leftover .txt file that isn't claimed by a record as a recovered timer, and populates
-    /// the UI from the result - the one path both startup and folder-switching go through, so a
-    /// folder always comes back exactly as it was however it lost track of a timer.</summary>
+    /// <summary>Loads the saved timer roster at startup, reconciles any external renames, and
+    /// adopts any leftover .txt file in the configured folder that isn't claimed by a record as
+    /// a recovered timer - so however a timer's record was lost, it comes back as long as its
+    /// file is still sitting there.</summary>
     private void LoadTimersForCurrentFolder()
     {
-        var records = TimerStore.LoadRecordsForFolder(TimerFileWriter.OutputDirectory);
+        var records = TimerStore.LoadRecords();
         ReconcileExternallyRenamedRecords(records);
         var recovered = AdoptOrphanedTimerFiles(records);
 
@@ -345,45 +338,25 @@ public partial class MainWindow : Window
         });
     }
 
-    /// <summary>Rebuilds the manifest of every timer file the app currently considers "in use",
-    /// across every folder profile it's ever saved - not just the currently active one - so
-    /// uninstall cleanup can find files left behind in folders the user isn't using right now.</summary>
+    /// <summary>Rebuilds the manifest of every timer file the app currently considers "in use", so
+    /// uninstall cleanup knows what's actually still valid.</summary>
     private void RewriteFileManifest() =>
         TimerFileWriter.WriteManifest(BuildAllKnownFilePaths().Distinct(StringComparer.OrdinalIgnoreCase));
 
     /// <summary>Every timer and active-app file path the app currently considers legitimately in
-    /// use, across every folder profile it's ever saved - not just the currently active one. Used
-    /// both for the uninstall manifest and as the "don't delete these" set for Clear Old Timers,
-    /// so switching away from a folder doesn't make its still-valid files look orphaned.</summary>
+    /// use. Used both for the uninstall manifest and as the "don't delete these" set for Clear Old
+    /// Timers - anything else sitting in a folder the timer-files location has ever pointed at
+    /// (including a folder switched away from) is fair game to clean up, since timers now travel
+    /// with the user instead of being scoped to whichever folder they were saved from.</summary>
     private List<string> BuildAllKnownFilePaths()
     {
-        var paths = new List<string>();
-
-        foreach (var profile in TimerStore.LoadAllProfiles())
-        {
-            if (IsCurrentFolder(profile.FolderPath))
-                continue; // the current folder's live paths come from AllTimers below, which may include not-yet-saved edits
-
-            foreach (var record in profile.Timers)
-                paths.Add(TimerFileWriter.GetFilePathIn(profile.FolderPath, record.Name));
-
-            if (profile.Timers.Any(r => r.Kind == TimerKind.CountUp))
-                paths.Add(TimerFileWriter.GetActiveAppFilePathIn(profile.FolderPath));
-        }
-
-        paths.AddRange(AllTimers.Select(t => t.FilePath));
+        var paths = AllTimers.Select(t => t.FilePath).ToList();
 
         if (_regularTimers.Count > 0)
             paths.Add(TimerFileWriter.ActiveAppFilePath);
 
         return paths;
     }
-
-    private static bool IsCurrentFolder(string folderPath) =>
-        string.Equals(
-            Path.GetFullPath(folderPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-            Path.GetFullPath(TimerFileWriter.OutputDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-            StringComparison.OrdinalIgnoreCase);
 
     private void SetUpTrayIcon()
     {
@@ -567,7 +540,7 @@ public partial class MainWindow : Window
                 timer.Toggle();
         }
 
-        TimerStore.SaveRecordsForFolder(TimerFileWriter.OutputDirectory, allTimers);
+        TimerStore.SaveRecords(allTimers);
         SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged;
 
         var hwnd = new WindowInteropHelper(this).Handle;
@@ -763,35 +736,23 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Switches to a different timer-files folder, treating each folder as its own
-    /// independent profile: the current folder's timers are saved as-is (so switching back
-    /// later restores them exactly), then whatever was previously saved for the destination
-    /// folder is loaded in - or an empty set, if it's never been used before.</summary>
+    /// <summary>Relocates where timer files are written without changing which timers exist - the
+    /// timer-files folder is just an output location, not a separate roster, so switching it takes
+    /// every current timer along and rewrites each one's file at the new folder instead of loading
+    /// a different set.</summary>
     private void SwitchTimerFolder(string? newDirectory)
     {
-        TimerStore.SaveRecordsForFolder(TimerFileWriter.OutputDirectory, AllTimers);
+        ConfigureTimerFileLocation(newDirectory);
+        _settings.TimerFilesDirectory = newDirectory;
 
-        // Guaranteed to clear even if something below throws (e.g. the destination folder is
-        // unreadable) - otherwise every future Add/Remove would silently stop autosaving for
-        // the rest of the session instead of just this switch failing.
-        _isSwitchingFolder = true;
-        try
-        {
-            _regularTimers.Clear();
-            _countdownTimers.Clear();
-            _activeAppTimer = null;
+        foreach (var timer in AllTimers)
+            timer.RefreshFile();
 
-            ConfigureTimerFileLocation(newDirectory);
-            _settings.TimerFilesDirectory = newDirectory;
-
-            LoadTimersForCurrentFolder();
-        }
-        finally
-        {
-            _isSwitchingFolder = false;
-        }
+        if (_regularTimers.Count > 0)
+            TimerFileWriter.EnsureActiveAppFileExists();
 
         RewriteFileManifest();
+        SaveTimerRecords();
         SetUpFileWatcher();
     }
 }

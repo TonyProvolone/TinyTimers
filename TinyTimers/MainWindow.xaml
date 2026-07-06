@@ -114,7 +114,8 @@
                                     BorderThickness="0"
                                     Cursor="Hand"/>
 
-                            <Button Content="&#x1F5D1;"
+                            <Button Content="&#xE74D;"
+                                    FontFamily="Segoe MDL2 Assets"
                                     Width="{DynamicResource TimerButtonSquareSize}"
                                     Height="{DynamicResource TimerButtonSquareSize}"
                                     FontSize="{DynamicResource TimerButtonFontSize}"
