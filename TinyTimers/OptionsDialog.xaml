@@ -58,7 +58,7 @@
                   Content="Keep window on top of other apps"
                   Foreground="{DynamicResource PrimaryTextBrush}"
                   Margin="0,0,0,4"
-                  ToolTip="Keeps the Tiny Timers window above other windows so it doesn't get pushed behind whatever else you're focused on"/>
+                  ToolTip="Keeps Tiny Timers window above other windows"/>
 
         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,16,0,16"/>
 
@@ -196,7 +196,7 @@
                   Content="Automatic updates"
                   Foreground="{DynamicResource PrimaryTextBrush}"
                   Margin="0,0,0,10"
-                  ToolTip="Downloads new versions in the background and installs them the next time you restart Tiny Timers, so it never interrupts what you're doing"/>
+                  ToolTip="Downloads new versions in the background and installs them the next time you restart Tiny Timers"/>
         <Grid Margin="0,0,0,4">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -212,7 +212,7 @@
                        MouseLeftButtonUp="UpdateStatusText_MouseLeftButtonUp"/>
             <Button x:Name="CheckForUpdatesButton"
                     Grid.Column="1"
-                    Content="Check Now"
+                    Content="Check for Updates"
                     Width="90" Height="28"
                     Margin="8,0,0,0"
                     Click="CheckForUpdates_Click"

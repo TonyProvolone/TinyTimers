@@ -1,7 +1,13 @@
 # Tiny Timers
 
-A lightweight Windows desktop app for tracking game/app time, with text file
-output, countdowns, linked-app auto-detection, and global hotkeys.
+A lightweight Windows desktop app for tracking time in an app or game (think survival timers or speedruns), or even countdowns.
+
+## Quick Feature List
+- Create multiple custom Stopwatch and Countdown-style timers
+- Link Stopwatch timers to a game or app
+- Global hotkeys for starting, stopping, and resetting timers
+
+**DISCLAIMER**: Totally wrote this with AI. Very minor manual edits on my side because I'm a lowly front end web developer, not an app developer, so I have no idea what I'm doing here. I just figured this thing might be useful to possibly tens of people in the world.
 
 ## Install
 
@@ -16,8 +22,7 @@ output, countdowns, linked-app auto-detection, and global hotkeys.
 **Settings > Apps > Installed apps > Tiny Timers > Uninstall**, or
 via the Start Menu shortcut **Tiny Timers > Uninstall Tiny Timers**.
 
-You'll be asked whether to also remove your saved data (timers, options, and cached files under
-`%LocalAppData%\TinyTimers`):
+You'll be asked whether to also remove your saved data (timers, options, and cached files):
 
 - **Yes** - deletes your timer text files (wherever you've pointed them, including custom
   folders), settings, and cached data. This cannot be undone.
@@ -29,7 +34,7 @@ You'll be asked whether to also remove your saved data (timers, options, and cac
 
 Click **Add Timer** to create a new timer.
 
-- **Regular (count-up)** - counts up from zero once started, like a stopwatch. Can be linked to
+- **Regular (stopwatch-style)** - counts up from zero once started. Can be linked to
   an app (see below).
 - **Countdown** - counts down from a duration you set, and plays a sound when it reaches zero.
 
