@@ -465,6 +465,10 @@ public partial class MainWindow : Window
         openItem.Click += (_, _) => RestoreFromTray();
         _trayMenu.Items.Add(openItem);
 
+        var restartItem = new System.Windows.Forms.ToolStripMenuItem("Restart");
+        restartItem.Click += (_, _) => RestartApplication();
+        _trayMenu.Items.Add(restartItem);
+
         var exitItem = new System.Windows.Forms.ToolStripMenuItem("Exit");
         exitItem.Click += (_, _) => ExitApplication();
         _trayMenu.Items.Add(exitItem);
@@ -518,6 +522,34 @@ public partial class MainWindow : Window
     {
         _isExiting = true;
         Close();
+    }
+
+    /// <summary>Relaunches the app: starts a fresh instance, then exits this one through the same
+    /// clean teardown as Exit (saving timers, unregistering hotkeys, releasing the single-instance
+    /// mutex). The new instance is handed this process's id via --restart so it waits for this one
+    /// to fully exit before claiming the mutex - otherwise it would see a still-running instance
+    /// and immediately bow out, turning the restart into just a quit.</summary>
+    private void RestartApplication()
+    {
+        var exePath = Environment.ProcessPath;
+        if (exePath is null)
+            return;
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exePath, $"--restart={Environment.ProcessId}")
+            {
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            // Couldn't launch the replacement (missing exe, blocked by AV, etc.) - leave this
+            // instance running rather than exiting into nothing.
+            return;
+        }
+
+        ExitApplication();
     }
 
     private void MainWindow_Closing(object? sender, CancelEventArgs e)

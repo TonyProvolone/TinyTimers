@@ -7,7 +7,7 @@ A lightweight Windows desktop app for tracking time in an app or game (think sur
 - Link Stopwatch timers to a game or app
 - Global hotkeys for starting, stopping, and resetting timers
 
-**DISCLAIMER**: Totally wrote this with AI. Very minor manual edits on my side because I'm a lowly front end web developer, not an app developer, so I have no idea what I'm doing here. I just figured this thing might be useful to possibly tens of people in the world.
+**DISCLAIMER**: Shameless written with AI. Very minor manual edits on my side because I'm a lowly front end web developer, not an app developer, so I have no idea what I'm doing here. I just figured this thing might be useful to possibly tens of people in the world.
 
 ## Install
 
@@ -24,8 +24,7 @@ via the Start Menu shortcut **Tiny Timers > Uninstall Tiny Timers**.
 
 You'll be asked whether to also remove your saved data (timers, options, and cached files):
 
-- **Yes** - deletes your timer text files (wherever you've pointed them, including custom
-  folders), settings, and cached data. This cannot be undone.
+- **Yes** - deletes your timer text files, settings, and cached data. This cannot be undone.
 - **No** - leaves all of that in place, so reinstalling later picks up right where you left off.
 
 ## Using Tiny Timers
@@ -41,9 +40,9 @@ Click **Add Timer** to create a new timer.
 Timer features:
 
 - **Start / Pause / Resume** - click the timer's button, or use the global hotkey (see below).
-- **Edit** - rename it, change its current time (or countdown duration), and change its linked
-  app or sound.
-- **Reset** - count-up timers reset to zero; countdowns reset to their initial duration.
+- **Edit** - rename, change current time (or countdown duration), and change linked
+  app (stopwatch) or sound (countdown).
+- **Reset** - stopwatch timers reset to zero; countdowns reset to their initial duration.
 - **Remove** - deletes the timer and its associated text file. This cannot be undone.
 - **Reveal file** - opens the folder containing this timer's live-updating text file.
 
@@ -58,8 +57,8 @@ A linked timer:
   window is actually focused and "foreground-active".
 - Becomes the target of the global hotkeys automatically whenever its app is the one in focus.
 
-If several linked timers are running at once, the global hotkeys act on whichever one's
-app is currently in the focused and in the foreground. If only one timer has a linked app configured at all, the hotkeys always target that one, from anywhere.
+If several linked timers are running at once, the global hotkeys act on whichever timer's
+app is currently focused and in the foreground. If only one timer has a linked app configured, the hotkeys always target that one by default.
 
 ### Countdown sounds
 
@@ -68,15 +67,11 @@ A countdown plays a default system "ding" when it finishes, or you can pick your
 
 ### Live text files for OBS / streaming
 
-Every timer continuously writes its current display time to its own plain-text `.txt` file, ready
-to drop straight into an OBS (or similar) "Read from file" text source. There's also a shared
-`active_app.txt` that always reflects whichever *linked* regular timer is currently
-foreground-active. Point one text source at that single file and it'll automatically follow
-whatever game/app you're currently playing, without needing to swap sources.
+When linked to a game/app, stopwatch timers continuously write its current time to a plain-text `.txt` file, that can be added into an OBS (or similar) "Read from file" text source.
 
-By default these files live under `%LocalAppData%\TinyTimers\Timer Text Files`, but you can point
-them at any folder you like from **Options > Timer Files**. Switching folders keeps each folder's
-timers as its own independent profile. Switching back to a previous folder restores any timers that were there before.
+An additional `active_app.txt` file will be created. This file will reflect whatever current timer is "active". Point a text source to `active_app.txt` and it'll automatically follow whatever game/app you're currently playing, without needing to swap sources.
+
+Use **Options > Timer Files** to change the location of stored `.txt` files.
 
 ### Global hotkeys
 
