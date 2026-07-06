@@ -197,30 +197,35 @@
                   Foreground="{DynamicResource PrimaryTextBrush}"
                   Margin="0,0,0,10"
                   ToolTip="Downloads new versions in the background and installs them the next time you restart Tiny Timers"/>
-        <Grid Margin="0,0,0,4">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock x:Name="UpdateStatusText"
-                       Grid.Column="0"
-                       Foreground="{DynamicResource MutedTextBrush}"
-                       FontSize="11"
-                       VerticalAlignment="Center"
-                       TextWrapping="Wrap"
-                       Cursor="Hand"
-                       MouseLeftButtonUp="UpdateStatusText_MouseLeftButtonUp"/>
+        <TextBlock x:Name="UpdateStatusText"
+                   Foreground="{DynamicResource MutedTextBrush}"
+                   FontSize="11"
+                   Margin="0,0,0,8"
+                   TextWrapping="Wrap"
+                   Cursor="Hand"
+                   MouseLeftButtonUp="UpdateStatusText_MouseLeftButtonUp"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,4">
+            <Button x:Name="InstallAndRestartButton"
+                    Content="Install and restart"
+                    Height="28"
+                    Padding="10,0"
+                    Margin="0,0,8,0"
+                    Visibility="Collapsed"
+                    Click="InstallAndRestart_Click"
+                    ToolTip="Downloads the update if needed, then closes and restarts Tiny Timers with it installed"
+                    Background="{DynamicResource AccentBackgroundBrush}"
+                    Foreground="{DynamicResource AccentForegroundBrush}"
+                    BorderThickness="0"
+                    Cursor="Hand"/>
             <Button x:Name="CheckForUpdatesButton"
-                    Grid.Column="1"
                     Content="Check for updates"
                     Width="120" Height="28"
-                    Margin="8,0,0,0"
                     Click="CheckForUpdates_Click"
                     Background="{DynamicResource SecondaryButtonBackgroundBrush}"
                     Foreground="{DynamicResource SecondaryButtonForegroundBrush}"
                     BorderThickness="0"
                     Cursor="Hand"/>
-        </Grid>
+        </StackPanel>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
             <Button Content="Cancel"

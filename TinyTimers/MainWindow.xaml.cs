@@ -727,6 +727,9 @@ public partial class MainWindow : Window
 
         SettingsStore.Save(_settings);
         StartupManager.SetEnabled(_settings.RunOnStartup);
+
+        if (dialog.RestartRequested)
+            RestartApplication();
     }
 
     private void ApplyHotkeyChange(int id, HotkeyModifiers modifiers, uint key)

@@ -28,7 +28,12 @@ public partial class OptionsDialog : Window
     public HotkeyModifiers ResetHotkeyModifiers { get; private set; }
     public uint ResetHotkeyKey { get; private set; }
 
+    /// <summary>True when the dialog closed via "Install and restart" - the caller should restart
+    /// the app (which, on relaunch, finds the now-downloaded update pending and installs it).</summary>
+    public bool RestartRequested { get; private set; }
+
     private string? _latestReleaseHtmlUrl;
+    private UpdateChecker.UpdateInfo? _pendingUpdateInfo;
 
     public OptionsDialog(AppSettings current, IReadOnlyCollection<string> activeTimerFilePaths)
     {
@@ -66,6 +71,17 @@ public partial class OptionsDialog : Window
         UpdateHotkeyDisplay();
         UpdateResetHotkeyDisplay();
         CurrentVersionText.Text = $"You're on version {UpdateChecker.CurrentVersion.ToString(3)}";
+
+        // An update may already be sitting downloaded and ready - e.g. the background
+        // auto-updater fetched it before this dialog was ever opened - so reflect that
+        // immediately instead of only showing it after another manual check.
+        if (UpdateInstaller.TryGetPendingInstaller(out _, out var pendingVersionText)
+            && Version.TryParse(pendingVersionText, out var pendingVersion)
+            && UpdateChecker.IsNewer(pendingVersion))
+        {
+            InstallAndRestartButton.Visibility = Visibility.Visible;
+            UpdateStatusText.Text = $"v{pendingVersion.ToString(3)} downloaded.";
+        }
     }
 
     private static void SetSizeRadio(
@@ -192,6 +208,8 @@ public partial class OptionsDialog : Window
     private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
     {
         CheckForUpdatesButton.IsEnabled = false;
+        InstallAndRestartButton.Visibility = Visibility.Collapsed;
+        _pendingUpdateInfo = null;
         UpdateStatusText.Text = "Checking for updates...";
         _latestReleaseHtmlUrl = null;
 
@@ -211,6 +229,8 @@ public partial class OptionsDialog : Window
             }
 
             _latestReleaseHtmlUrl = info.HtmlUrl;
+            _pendingUpdateInfo = info;
+            InstallAndRestartButton.Visibility = Visibility.Visible;
 
             if (AutomaticUpdatesCheck.IsChecked == true)
             {
@@ -243,6 +263,53 @@ public partial class OptionsDialog : Window
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
+        ApplySettingsFromControls();
+        DialogResult = true;
+    }
+
+    /// <summary>Downloads the update found by the last check - unless one's already sitting
+    /// downloaded and pending (e.g. from the background auto-updater, detected in the
+    /// constructor) - then closes the dialog like Save and asks the caller to restart, which on
+    /// relaunch finds the update pending and installs it. Leaves the dialog open with an error if
+    /// the download doesn't succeed, rather than restarting into the same old version.</summary>
+    private async void InstallAndRestart_Click(object sender, RoutedEventArgs e)
+    {
+        InstallAndRestartButton.IsEnabled = false;
+        CheckForUpdatesButton.IsEnabled = false;
+
+        bool ready;
+        try
+        {
+            if (_pendingUpdateInfo is { } info)
+            {
+                UpdateStatusText.Text = $"Downloading {info.TagName}...";
+                await UpdateInstaller.DownloadAsync(info);
+            }
+
+            ready = UpdateInstaller.TryGetPendingInstaller(out _, out var pendingVersionText)
+                && Version.TryParse(pendingVersionText, out var pendingVersion)
+                && UpdateChecker.IsNewer(pendingVersion);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or UnauthorizedAccessException)
+        {
+            ready = false;
+        }
+
+        if (!ready)
+        {
+            UpdateStatusText.Text = "Couldn't download the update. Try again later.";
+            InstallAndRestartButton.IsEnabled = true;
+            CheckForUpdatesButton.IsEnabled = true;
+            return;
+        }
+
+        ApplySettingsFromControls();
+        RestartRequested = true;
+        DialogResult = true;
+    }
+
+    private void ApplySettingsFromControls()
+    {
         RunOnStartup = RunOnStartupCheck.IsChecked == true;
         MinimizeToTaskbar = MinimizeToTaskbarCheck.IsChecked == true;
         AlwaysOnTop = AlwaysOnTopCheck.IsChecked == true;
@@ -254,8 +321,6 @@ public partial class OptionsDialog : Window
         TimerNameSize = GetSizeRadio(NameSizeLargeRadio, NameSizeGiantRadio);
         TimerValueSize = GetSizeRadio(ValueSizeLargeRadio, ValueSizeGiantRadio);
         TimerButtonSize = GetSizeRadio(ButtonSizeLargeRadio, ButtonSizeGiantRadio);
-
-        DialogResult = true;
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
