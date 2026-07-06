@@ -212,8 +212,8 @@
                        MouseLeftButtonUp="UpdateStatusText_MouseLeftButtonUp"/>
             <Button x:Name="CheckForUpdatesButton"
                     Grid.Column="1"
-                    Content="Check for Updates"
-                    Width="90" Height="28"
+                    Content="Check for updates"
+                    Width="120" Height="28"
                     Margin="8,0,0,0"
                     Click="CheckForUpdates_Click"
                     Background="{DynamicResource SecondaryButtonBackgroundBrush}"
