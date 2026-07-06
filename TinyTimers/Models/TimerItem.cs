@@ -64,7 +64,7 @@ public sealed class TimerItem : INotifyPropertyChanged
 
     public bool HasLinkedApp => LinkedAppPath is not null;
 
-    public string LinkedAppTooltip => HasLinkedApp ? $"Linked app: {Path.GetFileName(LinkedAppPath)}" : "";
+    public string LinkedAppTooltip => HasLinkedApp ? $"Linked app: {FriendlyAppName.Resolve(LinkedAppPath!)}" : "";
 
     public bool IsLinkedAppRunning { get; private set; }
 
